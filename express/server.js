@@ -1,22 +1,29 @@
-'use strict';
+const request = require('request');
 const express = require('express');
-const path = require('path');
-const serverless = require('serverless-http');
-const app = express();
-const bodyParser = require('body-parser');
+const jsdom = require("jsdom");
+const { JSDOM } = jsdom;
 
-const router = express.Router();
-router.get('/', (req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.write('<h1>Hello from Express.js!</h1>');
-  res.end();
+let app = express();
+var elements = ["h1", "a", "image"];
+
+app.get('/getStyles', function (req, res) {
+    let url = req.query.url;
+    let styleResponse = {};
+    request(url, (error, response, html) => {
+        const dom = new JSDOM(html);
+
+        for(var i = 0; i < elements.length; i++){
+            var currentElement = dom.window.document.querySelector(elements[i]);
+            
+            if(currentElement != null){
+                styleResponse[elements[i]] = dom.window.getComputedStyle(currentElement);
+            }   
+        }
+        res.send(styleResponse)
+    });
+    
+})
+ 
+let server = app.listen(8080, function() {
+    console.log('Server is listening on port 8080')
 });
-router.get('/another', (req, res) => res.json({ route: req.originalUrl }));
-router.post('/', (req, res) => res.json({ postBody: req.body }));
-
-app.use(bodyParser.json());
-app.use('/.netlify/functions/server', router);  // path must route to lambda
-app.use('/', (req, res) => res.sendFile(path.join(__dirname, '../index.html')));
-
-module.exports = app;
-module.exports.handler = serverless(app);
